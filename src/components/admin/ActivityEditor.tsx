@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Activity } from "@/types/itinerary";
 
 interface ActivityEditorProps {
@@ -25,6 +25,7 @@ export default function ActivityEditor({
   isLast,
 }: ActivityEditorProps) {
   const [newItem, setNewItem] = useState("");
+  const newItemInputRef = useRef<HTMLInputElement>(null);
 
   // Handle both string (legacy) and array formats
   const normalizeDescription = (): string[] => {
@@ -40,6 +41,10 @@ export default function ActivityEditor({
     if (newItem.trim()) {
       onUpdate({ description: [...descriptions, newItem.trim()] });
       setNewItem("");
+      // Focus back to input after React re-renders
+      requestAnimationFrame(() => {
+        newItemInputRef.current?.focus();
+      });
     }
   };
 
@@ -47,6 +52,29 @@ export default function ActivityEditor({
     if (e.key === "Enter") {
       e.preventDefault();
       handleAddItem();
+    }
+  };
+
+  const handleBlur = () => {
+    if (newItem.trim()) {
+      handleAddItem();
+    }
+  };
+
+  const handleExistingItemKeyDown = (e: React.KeyboardEvent, itemIndex: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // If current item is not empty, focus the new item input
+      if (descriptions[itemIndex]?.trim()) {
+        newItemInputRef.current?.focus();
+      }
+    }
+  };
+
+  const handleExistingItemBlur = (itemIndex: number) => {
+    // If the item is not empty, ensure new input is available (it always is, but trigger re-render awareness)
+    if (descriptions[itemIndex]?.trim()) {
+      // No-op, the new input field is always present
     }
   };
 
@@ -114,6 +142,8 @@ export default function ActivityEditor({
                     type="text"
                     value={item}
                     onChange={(e) => handleUpdateItem(i, e.target.value)}
+                    onKeyDown={(e) => handleExistingItemKeyDown(e, i)}
+                    onBlur={() => handleExistingItemBlur(i)}
                     className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
@@ -131,10 +161,12 @@ export default function ActivityEditor({
                   +
                 </span>
                 <input
+                  ref={newItemInputRef}
                   type="text"
                   value={newItem}
                   onChange={(e) => setNewItem(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onBlur={handleBlur}
                   className="flex-1 px-3 py-1.5 bg-white border border-dashed border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid"
                   placeholder="Añadir item y presionar Enter..."
                 />
