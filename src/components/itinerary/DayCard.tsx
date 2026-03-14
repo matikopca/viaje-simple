@@ -58,9 +58,9 @@ export default function DayCard({
   const totalActivitiesCost = activities.reduce((sum, a) => sum + (a.priceUSD || 0), 0);
 
   return (
-    <div className="relative pl-12">
+    <div className="relative pl-8 md:pl-12">
       <div 
-        className={`absolute left-2 w-4 h-4 rounded-full transition-all duration-300 ${
+        className={`absolute left-0 md:left-2 w-3 h-3 md:w-4 md:h-4 rounded-full transition-all duration-300 ${
           isExpanded 
             ? "bg-gradient-to-br from-orange-400 to-pink-500 scale-125" 
             : "bg-gradient-to-br from-blue-500 to-purple-600"
@@ -74,7 +74,7 @@ export default function DayCard({
       >
         <button
           onClick={handleToggle}
-          className="w-full p-6 text-left flex items-center justify-between group"
+          className="w-full p-4 md:p-6 text-left flex items-center justify-between group"
         >
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export default function DayCard({
         <div className={`transition-all duration-300 ease-in-out ${
           isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"
         } overflow-hidden`}>
-          <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+          <div className="px-4 md:px-6 pb-4 md:pb-6 border-t border-gray-100 pt-4">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Actividades</h3>
             <ul className="text-gray-600 space-y-3">
               {activities.map((activity, i) => (
@@ -158,50 +158,61 @@ export default function DayCard({
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-gray-900">{activity.place}</span>
-                        {activity.duration && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                            {activity.duration}
-                          </span>
-                        )}
-                        {activity.priceUSD !== undefined && activity.priceUSD > 0 && (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                            ${activity.priceUSD}
-                          </span>
-                        )}
-                      </div>
+                      <span className="font-medium text-gray-900 block">{activity.place}</span>
+                      
                       {activity.description && (
                         Array.isArray(activity.description) ? (
                           activity.description.length > 0 && (
                             <ul className="mt-2 space-y-1">
                               {activity.description.map((item, idx) => (
                                 <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
-                                  <span className="text-gray-400 mt-0.5">•</span>
-                                  <span>{item}</span>
+                                  <span className="text-gray-400 mt-0.5 flex-shrink-0">•</span>
+                                  <span className="break-words">{item}</span>
                                 </li>
                               ))}
                             </ul>
                           )
                         ) : (
-                          <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                          <p className="text-sm text-gray-600 mt-1 break-words">{activity.description}</p>
                         )
                       )}
+                      
+                      {(activity.duration || (activity.priceUSD !== undefined && activity.priceUSD > 0) || activity.mapUrl) && (
+                        <div className="flex items-center gap-2 mt-3 flex-wrap">
+                          {activity.duration && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {activity.duration}
+                            </span>
+                          )}
+                          {activity.priceUSD !== undefined && activity.priceUSD > 0 && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              ${activity.priceUSD}
+                            </span>
+                          )}
+                          {activity.mapUrl && (
+                            <a
+                              href={activity.mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-full inline-flex items-center gap-1 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              Ver mapa
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {activity.mapUrl && (
-                      <a
-                        href={activity.mapUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors flex-shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </a>
-                    )}
                   </div>
                 </li>
               ))}
