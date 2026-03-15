@@ -73,7 +73,7 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Nivel 1: ID - Título - Botón expandir */}
+      {/* Nivel 1: ID - Título - Nº actividades - Botón expandir */}
       <div className="flex items-center gap-2 p-3 md:p-4 border-b border-gray-100">
         <span className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm md:text-base flex-shrink-0">
           {day.day}
@@ -84,15 +84,20 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
           className="flex-1 text-left flex items-center justify-between gap-2 min-w-0 hover:bg-gray-50 rounded-lg -m-1 p-1 transition-colors"
         >
           <h3 className="font-semibold text-gray-900 break-words min-w-0">{day.title}</h3>
-          <div className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}>
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs bg-blue-50 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center font-medium" title={`${day.activities.length} actividades`}>
+              {day.activities.length}
+            </span>
+            <div className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}>
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
         </button>
       </div>
-      {/* Nivel 2: Draggable - Nº actividades - Botón eliminar */}
-      <div className="flex items-center gap-2 px-3 pb-3 md:px-4 md:pb-4 pt-0">
+      {/* Nivel 2: Draggable - Fecha - Lugar - Nº actividades - Botón eliminar */}
+      <div className="flex items-center gap-2 px-3 pb-3 md:px-4 md:pb-4 pt-0 flex-wrap">
         {typeof index === "number" && onDragStart && onDragEnd ? (
           <div
             draggable={true}
@@ -111,13 +116,20 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
         ) : (
           <div className="w-8" aria-hidden />
         )}
-        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">
-          {day.activities.length} {day.activities.length === 1 ? "actividad" : "actividades"}
-        </span>
+        {day.date && (
+          <span className="text-sm text-gray-600 whitespace-nowrap" title="Fecha">
+            {day.date}
+          </span>
+        )}
+        {day.location && (
+          <span className="text-sm text-gray-600 min-w-0 truncate max-w-[120px] md:max-w-[180px]" title={day.location}>
+            {day.location}
+          </span>
+        )}
         <button
           type="button"
           onClick={handleDeleteDay}
-          className="ml-auto w-9 h-9 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors flex-shrink-0"
+          className="ml-auto w-auto min-w-0 px-2 h-9 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors flex-shrink-0"
           title="Eliminar día"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +194,7 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
           </div>
 
           <div className="border-t border-gray-100 pt-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Transporte (salir = guardar)</h4>
+            <h4 className="text-sm font-semibold text-gray-900 mb-2">Transporte</h4>
             <div className="flex flex-nowrap items-end gap-3">
               <div className="min-w-[120px] flex-1">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Tipo</label>

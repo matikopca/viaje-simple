@@ -147,7 +147,7 @@ export default function ActivityEditor({
           <button
             onClick={onMoveUp}
             disabled={isFirst}
-            className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="w-8 h-8 rounded-lg bg-white border-2 border-gray-400 flex items-center justify-center text-gray-800 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             title="Mover arriba"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,7 +157,7 @@ export default function ActivityEditor({
           <button
             onClick={onMoveDown}
             disabled={isLast}
-            className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="w-8 h-8 rounded-lg bg-white border-2 border-gray-400 flex items-center justify-center text-gray-800 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             title="Mover abajo"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
