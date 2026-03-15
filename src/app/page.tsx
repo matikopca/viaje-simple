@@ -1,14 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ItineraryProvider, useItinerary } from "@/contexts/ItineraryContext";
+import type { ItineraryDay } from "@/types/itinerary";
 import Timeline from "@/components/itinerary/Timeline";
 import DayCard from "@/components/itinerary/DayCard";
 
 function ItineraryContent() {
-  const { itinerary, loading, error } = useItinerary();
+  const { countries, itinerary, loading, error } = useItinerary();
   const [allExpanded, setAllExpanded] = useState<boolean | null>(null);
+  const [expandedCountryIds, setExpandedCountryIds] = useState<Set<string>>(new Set());
+  const initialExpandDone = useRef(false);
+
+  useEffect(() => {
+    if (countries.length > 0 && !initialExpandDone.current) {
+      initialExpandDone.current = true;
+      setExpandedCountryIds(new Set(countries.map((c) => c.id)));
+    }
+  }, [countries]);
+
+  const toggleCountry = (countryId: string) => {
+    setExpandedCountryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(countryId)) next.delete(countryId);
+      else next.add(countryId);
+      return next;
+    });
+  };
+
+  const expandAllCountries = () => {
+    setExpandedCountryIds(new Set(countries.map((c) => c.id)));
+  };
+
+  const collapseAllCountries = () => {
+    setExpandedCountryIds(new Set());
+  };
 
   if (loading) {
     return (
@@ -43,23 +70,25 @@ function ItineraryContent() {
     );
   }
 
-  const totalTransportCost = itinerary.reduce((sum, day) => {
+  const totalTransportCost = itinerary.reduce((sum: number, day: ItineraryDay) => {
     return sum + (day.transport?.priceUSD || 0);
   }, 0);
 
-  const totalActivitiesCost = itinerary.reduce((sum, day) => {
-    return sum + day.activities.reduce((acc, a) => acc + (a.priceUSD || 0), 0);
+  const totalActivitiesCost = itinerary.reduce((sum: number, day: ItineraryDay) => {
+    return sum + day.activities.reduce((acc: number, a) => acc + (a.priceUSD || 0), 0);
   }, 0);
 
-  const totalPlaces = itinerary.reduce((sum, day) => {
+  const totalPlaces = itinerary.reduce((sum: number, day: ItineraryDay) => {
     return sum + day.activities.length;
   }, 0);
 
   const handleExpandAll = () => {
+    expandAllCountries();
     setAllExpanded(true);
   };
 
   const handleCollapseAll = () => {
+    collapseAllCountries();
     setAllExpanded(false);
   };
 
@@ -70,9 +99,11 @@ function ItineraryContent() {
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">🇹🇭</span>
+              <span className="text-white text-xs font-bold">🌍</span>
             </div>
-            <span className="font-semibold text-gray-900 hidden sm:block">Tailandia {itinerary.length} Días</span>
+            <span className="font-semibold text-gray-900 hidden sm:block">
+              {countries.length > 0 ? (countries.length === 1 ? `${countries[0].name} • ${itinerary.length} días` : `${countries.length} países • ${itinerary.length} días`) : `${itinerary.length} días`}
+            </span>
           </div>
           <Link
             href="/admin"
@@ -90,16 +121,16 @@ function ItineraryContent() {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent uppercase tracking-wide">
-              Aventura de {itinerary.length} Días
+              {countries.length > 0 ? (countries.length === 1 ? countries[0].name : "Tu itinerario") : "Itinerario"}
             </p>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mt-2 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-              Itinerario de Viaje a Tailandia
+              {countries.length === 1 ? `Viaje a ${countries[0].name}` : countries.length > 1 ? `${itinerary.length} días en ${countries.length} países` : "Itinerario de viaje"}
             </h1>
           </div>
         </div>
         
         <p className="text-lg text-gray-500 mt-4 max-w-2xl">
-          Explora playas paradisíacas, islas impresionantes, templos ancestrales y la vibrante cultura tailandesa.
+          {countries.length === 1 ? "Tu agenda día a día." : countries.length > 1 ? "Tu ruta por país, en el orden que configuraste." : "Añade países y días en el editor."}
         </p>
         
         <div className="flex flex-wrap gap-4 mt-6">
@@ -139,24 +170,80 @@ function ItineraryContent() {
         </div>
       </section>
 
-      <Timeline>
-        {itinerary
-          .sort((a, b) => a.day - b.day)
-          .map((day) => (
-            <DayCard 
-              key={day.id} 
-              day={day.day}
-              date={day.date}
-              title={day.title}
-              location={day.location}
-              transport={day.transport}
-              activities={day.activities}
-              highlights={day.highlights}
-              forceExpanded={allExpanded}
-              onToggle={() => setAllExpanded(null)}
-            />
-          ))}
-      </Timeline>
+      {countries.length === 0 && itinerary.length === 0 && (
+        <div className="max-w-4xl mx-auto px-6 pb-24 text-center text-gray-500">
+          <p>No hay días en el itinerario. Ve a Editar para añadir países y días.</p>
+        </div>
+      )}
+
+      {countries.length === 0 && itinerary.length > 0 && (
+        <Timeline>
+          {[...itinerary]
+            .sort((a: ItineraryDay, b: ItineraryDay) => a.day - b.day)
+            .map((day: ItineraryDay) => (
+              <DayCard
+                key={day.id}
+                day={day.day}
+                date={day.date}
+                title={day.title}
+                location={day.location}
+                transport={day.transport}
+                activities={day.activities}
+                highlights={day.highlights}
+                forceExpanded={allExpanded}
+                onToggle={() => setAllExpanded(null)}
+              />
+            ))}
+        </Timeline>
+      )}
+
+      {countries.map((country) => {
+        const isExpanded = expandedCountryIds.has(country.id);
+        return (
+          <div key={country.id} className="mb-10">
+            <button
+              type="button"
+              onClick={() => toggleCountry(country.id)}
+              className="max-w-4xl mx-auto w-full px-6 py-4 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-3xl flex-shrink-0">{country.flagEmoji || "🌍"}</span>
+                <div className="min-w-0">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{country.name}</h2>
+                  <p className="text-sm text-gray-500">{country.days.length} días</p>
+                </div>
+              </div>
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+            {isExpanded && (
+              <div className="mt-4">
+                <Timeline>
+                  {[...country.days]
+                    .sort((a: ItineraryDay, b: ItineraryDay) => a.day - b.day)
+                    .map((day: ItineraryDay) => (
+                      <DayCard
+                        key={day.id}
+                        day={day.day}
+                        date={day.date}
+                        title={day.title}
+                        location={day.location}
+                        transport={day.transport}
+                        activities={day.activities}
+                        highlights={day.highlights}
+                        forceExpanded={allExpanded}
+                        onToggle={() => setAllExpanded(null)}
+                      />
+                    ))}
+                </Timeline>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,9 +1,11 @@
 /**
- * Script to seed initial data into Supabase
- * 
+ * Script to seed initial data into Supabase (with countries)
+ *
+ * Prerequisite: Run supabase-schema.sql or supabase-migration-add-countries.sql
+ *
  * Usage:
  * 1. Create a .env.local file with your Supabase credentials
- * 2. Run: npx tsx scripts/seed-supabase.ts
+ * 2. Run: npm run seed
  */
 
 import { config } from "dotenv";
@@ -14,6 +16,8 @@ import { thailandItinerary } from "../src/app/data/thailand-itinerary";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const DEFAULT_COUNTRY_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("Error: Missing Supabase credentials in .env.local");
@@ -26,7 +30,18 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function seedData() {
   console.log("🚀 Starting data seed...\n");
 
-  // First, clear existing data
+  // Ensure default country exists
+  console.log("🌍 Ensuring country (Tailandia)...");
+  const { error: countryError } = await supabase.from("countries").upsert(
+    { id: DEFAULT_COUNTRY_ID, name: "Tailandia", sort_order: 0 },
+    { onConflict: "id" }
+  );
+  if (countryError) {
+    console.error("❌ Country error (run migration first?):", countryError.message);
+    process.exit(1);
+  }
+
+  // Clear existing data (activities first due to FK, then days)
   console.log("🗑️  Clearing existing data...");
   await supabase.from("activities").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   await supabase.from("days").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -34,8 +49,8 @@ async function seedData() {
   console.log("📅 Inserting days and activities...\n");
 
   for (const day of thailandItinerary) {
-    // Insert day
     const dayData = {
+      country_id: DEFAULT_COUNTRY_ID,
       day: day.day,
       date: day.date,
       location: day.location,
@@ -57,7 +72,6 @@ async function seedData() {
 
     console.log(`✅ Day ${day.day}: ${day.title}`);
 
-    // Insert activities for this day
     if (day.activities && day.activities.length > 0) {
       const activitiesData = day.activities.map((activity, index) => {
         const desc = (activity as Record<string, unknown>).description;
@@ -72,9 +86,7 @@ async function seedData() {
         };
       });
 
-      const { error: activitiesError } = await supabase
-        .from("activities")
-        .insert(activitiesData);
+      const { error: activitiesError } = await supabase.from("activities").insert(activitiesData);
 
       if (activitiesError) {
         console.error(`   ❌ Error inserting activities:`, activitiesError.message);

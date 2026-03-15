@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Activity } from "@/types/itinerary";
 
 interface ActivityEditorProps {
@@ -14,6 +14,13 @@ interface ActivityEditorProps {
   isLast: boolean;
 }
 
+function normalizeDescription(activity: Activity): string[] {
+  if (!activity.description) return [];
+  if (Array.isArray(activity.description)) return activity.description;
+  if (typeof activity.description === "string") return activity.description ? [activity.description] : [];
+  return [];
+}
+
 export default function ActivityEditor({
   activity,
   index,
@@ -24,71 +31,116 @@ export default function ActivityEditor({
   isFirst,
   isLast,
 }: ActivityEditorProps) {
-  const [newItem, setNewItem] = useState("");
-  const newItemInputRef = useRef<HTMLInputElement>(null);
+  const initialItems = normalizeDescription(activity);
+  const [localItems, setLocalItems] = useState<string[]>(initialItems);
+  const [newLine, setNewLine] = useState("");
+  const [place, setPlace] = useState(activity.place);
+  const [duration, setDuration] = useState(activity.duration ?? "");
+  const [priceUSD, setPriceUSD] = useState(
+    activity.priceUSD !== undefined && activity.priceUSD !== null ? String(activity.priceUSD) : ""
+  );
+  const [mapUrl, setMapUrl] = useState(activity.mapUrl ?? "");
+  const newLineRef = useRef<HTMLInputElement>(null);
+  const itemsRef = useRef<string[]>(localItems);
+  itemsRef.current = localItems;
 
-  const normalizeDescription = (): string[] => {
-    if (!activity.description) return [];
-    if (Array.isArray(activity.description)) return activity.description;
-    if (typeof activity.description === "string") return activity.description ? [activity.description] : [];
-    return [];
+  useEffect(() => {
+    setLocalItems(normalizeDescription(activity));
+  }, [activity.id]);
+
+  useEffect(() => {
+    setPlace(activity.place);
+    setDuration(activity.duration ?? "");
+    setPriceUSD(activity.priceUSD !== undefined && activity.priceUSD !== null ? String(activity.priceUSD) : "");
+    setMapUrl(activity.mapUrl ?? "");
+  }, [activity.id, activity.place, activity.duration, activity.priceUSD, activity.mapUrl]);
+
+  const commitItems = (items: string[]) => {
+    setLocalItems(items);
+    onUpdate({ description: items });
   };
 
-  const descriptions = normalizeDescription();
-
-  const handleAddItem = () => {
-    if (newItem.trim()) {
-      onUpdate({ description: [...descriptions, newItem.trim()] });
-      setNewItem("");
-      requestAnimationFrame(() => {
-        newItemInputRef.current?.focus();
-      });
+  const handleAddLine = () => {
+    const t = newLine.trim();
+    if (t) {
+      const next = [...localItems, t];
+      setNewLine("");
+      commitItems(next);
+      requestAnimationFrame(() => newLineRef.current?.focus());
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleNewLineKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleAddItem();
+      handleAddLine();
     }
   };
 
-  const handleBlur = () => {
-    if (newItem.trim()) {
-      handleAddItem();
+  const handleNewLineBlur = () => {
+    if (newLine.trim()) handleAddLine();
+  };
+
+  const handleItemBlur = (itemIndex: number, value: string) => {
+    const current = itemsRef.current;
+    const t = value.trim();
+    if (t) {
+      const next = [...current];
+      next[itemIndex] = t;
+      commitItems(next);
+    } else {
+      const next = current.filter((_, i) => i !== itemIndex);
+      commitItems(next);
     }
   };
 
-  const handleExistingItemKeyDown = (e: React.KeyboardEvent, itemIndex: number) => {
+  const handleItemChange = (itemIndex: number, value: string) => {
+    setLocalItems((prev) => {
+      const next = [...prev];
+      next[itemIndex] = value;
+      return next;
+    });
+  };
+
+  const handleItemKeyDown = (e: React.KeyboardEvent, itemIndex: number) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (descriptions[itemIndex]?.trim()) {
-        newItemInputRef.current?.focus();
-      }
+      (e.target as HTMLInputElement).blur();
     }
   };
 
   const handleRemoveItem = (itemIndex: number) => {
-    const updated = descriptions.filter((_, i) => i !== itemIndex);
-    onUpdate({ description: updated });
+    const next = localItems.filter((_, i) => i !== itemIndex);
+    commitItems(next);
   };
 
-  const handleUpdateItem = (itemIndex: number, value: string) => {
-    const updated = [...descriptions];
-    updated[itemIndex] = value;
-    onUpdate({ description: updated });
+  const commitPlace = () => {
+    const v = place.trim();
+    if (v !== activity.place) onUpdate({ place: v || "Nueva actividad" });
+  };
+  const commitDuration = () => {
+    const v = duration.trim();
+    if (v !== (activity.duration ?? "")) onUpdate({ duration: v || undefined });
+  };
+  const commitPrice = () => {
+    const num = priceUSD === "" ? undefined : parseFloat(String(priceUSD));
+    const same = (num === activity.priceUSD) || (Number.isNaN(num) && activity.priceUSD === undefined);
+    if (!same) onUpdate({ priceUSD: num });
+  };
+  const commitMapUrl = () => {
+    const v = mapUrl.trim();
+    if (v !== (activity.mapUrl ?? "")) onUpdate({ mapUrl: v || undefined });
   };
 
   return (
     <div className="bg-gray-100 rounded-xl p-3 md:p-4 border border-gray-200">
-      {/* Header with number and actions - mobile friendly */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="w-7 h-7 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
             {index + 1}
           </span>
           <span className="text-sm font-medium text-gray-700 truncate max-w-[150px] md:max-w-none">
-            {activity.place || "Nueva actividad"}
+            {place || "Nueva actividad"}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -124,25 +176,24 @@ export default function ActivityEditor({
         </div>
       </div>
 
-      {/* Form fields */}
       <div className="space-y-3">
-        {/* Place name */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Lugar</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Lugar (salir = guardar)</label>
           <input
             type="text"
-            value={activity.place}
-            onChange={(e) => onUpdate({ place: e.target.value })}
+            value={place}
+            onChange={(e) => setPlace(e.target.value)}
+            onBlur={commitPlace}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Nombre del lugar"
           />
         </div>
 
-        {/* Description items */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Qué hacer (Enter para añadir)</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Qué hacer (Enter = nueva línea, salir = guardar)</label>
           <div className="space-y-2">
-            {descriptions.map((item, i) => (
+            {localItems.map((item, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs flex-shrink-0">
                   {i + 1}
@@ -150,11 +201,13 @@ export default function ActivityEditor({
                 <input
                   type="text"
                   value={item}
-                  onChange={(e) => handleUpdateItem(i, e.target.value)}
-                  onKeyDown={(e) => handleExistingItemKeyDown(e, i)}
+                  onChange={(e) => handleItemChange(i, e.target.value)}
+                  onBlur={(e) => handleItemBlur(i, e.target.value)}
+                  onKeyDown={(e) => handleItemKeyDown(e, i)}
                   className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
+                  type="button"
                   onClick={() => handleRemoveItem(i)}
                   className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors flex-shrink-0"
                 >
@@ -169,12 +222,12 @@ export default function ActivityEditor({
                 +
               </span>
               <input
-                ref={newItemInputRef}
+                ref={newLineRef}
                 type="text"
-                value={newItem}
-                onChange={(e) => setNewItem(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleBlur}
+                value={newLine}
+                onChange={(e) => setNewLine(e.target.value)}
+                onKeyDown={handleNewLineKeyDown}
+                onBlur={handleNewLineBlur}
                 className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-dashed border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid"
                 placeholder="Añadir item..."
               />
@@ -182,24 +235,27 @@ export default function ActivityEditor({
           </div>
         </div>
 
-        {/* Duration and Cost - stack on mobile */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
+        <div className="flex flex-row items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
             <label className="block text-xs font-medium text-gray-700 mb-1">Duración</label>
             <input
               type="text"
-              value={activity.duration || ""}
-              onChange={(e) => onUpdate({ duration: e.target.value })}
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              onBlur={commitDuration}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="ej: 2-3h"
             />
           </div>
-          <div>
+          <div className="flex-1 min-w-[120px]">
             <label className="block text-xs font-medium text-gray-700 mb-1">Costo (USD)</label>
             <input
               type="number"
-              value={activity.priceUSD ?? ""}
-              onChange={(e) => onUpdate({ priceUSD: e.target.value ? parseFloat(e.target.value) : undefined })}
+              value={priceUSD}
+              onChange={(e) => setPriceUSD(e.target.value)}
+              onBlur={commitPrice}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
               min="0"
@@ -208,20 +264,21 @@ export default function ActivityEditor({
           </div>
         </div>
 
-        {/* Map URL */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Link de Google Maps</label>
           <div className="flex gap-2">
             <input
               type="url"
-              value={activity.mapUrl || ""}
-              onChange={(e) => onUpdate({ mapUrl: e.target.value })}
+              value={mapUrl}
+              onChange={(e) => setMapUrl(e.target.value)}
+              onBlur={commitMapUrl}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
               className="flex-1 min-w-0 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="https://maps.app.goo.gl/..."
             />
-            {activity.mapUrl && (
+            {mapUrl && (
               <a
-                href={activity.mapUrl}
+                href={mapUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center flex-shrink-0 transition-colors"

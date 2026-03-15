@@ -32,6 +32,15 @@ export interface ItineraryDay {
   transport?: Transport;
   activities: Activity[];
   highlights?: string[];
+  countryId?: string;
+}
+
+export interface Country {
+  id: string;
+  name: string;
+  /** Emoji de bandera; si no hay bandera usar 🌍 */
+  flagEmoji: string;
+  days: ItineraryDay[];
 }
 
 export type Itinerary = ItineraryDay[];

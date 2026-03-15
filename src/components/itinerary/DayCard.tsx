@@ -178,7 +178,7 @@ export default function DayCard({
                       )}
                       
                       {(activity.duration || (activity.priceUSD !== undefined && activity.priceUSD > 0) || activity.mapUrl) && (
-                        <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        <div className="flex flex-row items-center gap-2 mt-3 flex-wrap">
                           {activity.duration && (
                             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full inline-flex items-center gap-1">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
