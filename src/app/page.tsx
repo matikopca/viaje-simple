@@ -131,11 +131,11 @@ function ItineraryContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="relative min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {countdownTarget ? (
         <div
           ref={countdownScrollSentinelRef}
-          className="pointer-events-none h-px w-full shrink-0"
+          className="pointer-events-none absolute left-0 right-0 top-0 z-0 h-[min(40vh,220px)] min-h-[140px] w-full sm:min-h-[120px] sm:h-[min(28vh,180px)]"
           aria-hidden
         />
       ) : null}
