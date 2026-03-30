@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ItineraryProvider, useItinerary } from "@/contexts/ItineraryContext";
 import type { ItineraryDay } from "@/types/itinerary";
@@ -8,6 +8,14 @@ import Timeline from "@/components/itinerary/Timeline";
 import DayCard from "@/components/itinerary/DayCard";
 import DayEditor from "@/components/admin/DayEditor";
 import TripCountdown from "@/components/itinerary/TripCountdown";
+
+/** Fecha para la cuenta atrás: `NEXT_PUBLIC_TRIP_START_DATE` (YYYY-MM-DD) o el primer día del itinerario. */
+function getCountdownTargetDate(itinerary: ItineraryDay[]): string | null {
+  const env = process.env.NEXT_PUBLIC_TRIP_START_DATE?.trim();
+  if (env && /^\d{4}-\d{2}-\d{2}/.test(env)) return env.slice(0, 10);
+  if (itinerary.length === 0) return null;
+  return [...itinerary].sort((a, b) => a.date.localeCompare(b.date))[0].date;
+}
 
 function ItineraryContent() {
   const { countries, itinerary, loading, error } = useItinerary();
@@ -46,6 +54,8 @@ function ItineraryContent() {
       setExpandedCountryIds(new Set(countries.map((c) => c.id)));
     }
   }, [countries]);
+
+  const countdownTarget = getCountdownTargetDate(itinerary);
 
   const toggleCountry = (countryId: string) => {
     setExpandedCountryIds((prev) => {
@@ -107,14 +117,6 @@ function ItineraryContent() {
       [day.morningDescription, day.middayDescription, day.afternoonDescription].filter((s) => s.trim()).length
     );
   }, 0);
-
-  /** Fecha objetivo: `NEXT_PUBLIC_TRIP_START_DATE` (YYYY-MM-DD) o el primer día del itinerario. */
-  const countdownTarget = useMemo(() => {
-    const env = process.env.NEXT_PUBLIC_TRIP_START_DATE?.trim();
-    if (env && /^\d{4}-\d{2}-\d{2}/.test(env)) return env.slice(0, 10);
-    if (itinerary.length === 0) return null;
-    return [...itinerary].sort((a, b) => a.date.localeCompare(b.date))[0].date;
-  }, [itinerary]);
 
   const handleExpandAll = () => {
     expandAllCountries();
