@@ -94,9 +94,7 @@ function AdminContent() {
   };
 
   const totalCost = itinerary.reduce((sum: number, day: ItineraryDay) => {
-    const transportCost = day.transport?.priceUSD || 0;
-    const activitiesCost = day.activities.reduce((acc, a) => acc + (a.priceUSD || 0), 0);
-    return sum + transportCost + activitiesCost;
+    return sum + (day.transport?.priceUSD || 0);
   }, 0);
 
   const handleCopyExport = () => {

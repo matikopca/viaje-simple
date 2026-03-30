@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ItineraryDay, Transport } from "@/types/itinerary";
 import { useItinerary } from "@/contexts/ItineraryContext";
-import ActivityEditor from "./ActivityEditor";
+import DaySlotsEditor from "./DaySlotsEditor";
 
 interface DayEditorProps {
   day: ItineraryDay;
@@ -11,17 +11,20 @@ interface DayEditorProps {
   index?: number;
   onDragStart?: (e: React.DragEvent, index: number) => void;
   onDragEnd?: () => void;
+  /** main: solo formulario (fecha, título, ubicación, plan del día…), sin cabecera colapsable ni eliminar día */
+  variant?: "admin" | "main";
 }
 
-export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEditorProps) {
+export default function DayEditor({ day, index, onDragStart, onDragEnd, variant = "admin" }: DayEditorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [metaOpen, setMetaOpen] = useState(false);
   const [newHighlight, setNewHighlight] = useState("");
   const [dayNum, setDayNum] = useState(String(day.day));
   const [date, setDate] = useState(day.date);
   const [title, setTitle] = useState(day.title);
   const [location, setLocation] = useState(day.location);
   const [transport, setTransport] = useState<Transport | undefined>(day.transport);
-  const { updateDay, deleteDay, addActivity, updateActivity, deleteActivity, reorderActivities, addHighlight, removeHighlight } = useItinerary();
+  const { updateDay, deleteDay, addHighlight, removeHighlight } = useItinerary();
 
   useEffect(() => {
     setDayNum(String(day.day));
@@ -68,12 +71,251 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
   };
 
   const handleDeleteDay = () => {
-    if (confirm("¿Eliminar este día y todas sus actividades?")) deleteDay(day.id);
+    if (confirm("¿Eliminar este día?")) deleteDay(day.id);
   };
 
+  const metaSummaryLine1 = `Día ${dayNum || "?"} · ${title.trim() || "Sin título"}`;
+  const metaSummaryLine2 = `${date || "—"} · ${location.trim() || "Sin ubicación"}`;
+  const transportTypeLabels: Record<string, string> = {
+    flight: "Vuelo",
+    ferry: "Ferry",
+    bus: "Bus",
+    train: "Tren",
+    taxi: "Taxi",
+    "high-speed ferry": "Ferry rápido",
+    "longtail boat": "Longtail",
+    "boat tour": "Tour barco",
+    "speedboat tour": "Speedboat",
+  };
+  const transportSummary =
+    transport?.type || transport?.duration
+      ? [
+          transportTypeLabels[transport?.type || ""] || transport?.type || "Traslado",
+          transport?.duration,
+          transport?.priceUSD != null && transport.priceUSD > 0 ? `$${transport.priceUSD}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "Sin transporte";
+
+  const isMain = variant === "main";
+  const inputClass = isMain
+    ? "w-full px-3 py-2.5 text-base border-2 border-slate-300 rounded-lg text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+    : "w-full px-2.5 py-2 text-sm border-2 border-slate-300 rounded-lg text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30";
+  const lbl = isMain ? "block text-sm font-bold text-slate-800 mb-1.5" : "block text-xs font-bold text-slate-800 mb-1";
+  const secTitle = isMain ? "text-sm font-bold text-slate-900 uppercase tracking-wide mb-2" : "text-xs font-bold text-slate-900 uppercase tracking-wide mb-2";
+  const blockHdr = isMain ? "text-sm font-bold text-slate-900 uppercase tracking-wide" : "text-xs font-bold text-slate-900 uppercase tracking-wide";
+  const sum1 = isMain ? "text-base text-slate-900 font-semibold truncate" : "text-sm text-slate-900 font-semibold truncate";
+  const sum2 = isMain ? "text-sm text-slate-700 truncate" : "text-xs text-slate-700 truncate";
+  const sum3 = isMain ? "text-sm text-indigo-800 font-medium truncate" : "text-xs text-indigo-800 font-medium truncate";
+  const chevWrap = isMain ? "shrink-0 w-9 h-9 rounded-full bg-indigo-600 text-white border-2 border-indigo-700 shadow flex items-center justify-center transition-transform" : "shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white border-2 border-indigo-700 shadow flex items-center justify-center transition-transform";
+  const chevIcon = isMain ? "w-5 h-5" : "w-4 h-4";
+  const transportEmoji = isMain ? "text-lg" : "text-base";
+
+  const formBody = (
+        <div className={`${isMain ? "p-4 md:p-5 space-y-4" : "p-3 md:p-4 space-y-3"} ${variant === "admin" ? "border-t border-slate-200" : ""}`}>
+          <div className="rounded-xl border-2 border-slate-300 shadow-md overflow-hidden bg-white">
+            <button
+              type="button"
+              onClick={() => setMetaOpen((v) => !v)}
+              className={`w-full flex items-center justify-between gap-2 px-3 text-left bg-gradient-to-r from-indigo-50 via-white to-violet-50 hover:from-indigo-100/80 hover:to-violet-100/80 transition-colors border-b-2 border-slate-200/80 ${isMain ? "py-3.5" : "py-2.5"}`}
+            >
+              <div className="min-w-0 flex-1 pl-1 border-l-4 border-indigo-500">
+                <span className={blockHdr}>Día y título</span>
+                {!metaOpen && (
+                  <div className={`${isMain ? "mt-1.5 space-y-1" : "mt-1 space-y-0.5"}`}>
+                    <p className={sum1}>{metaSummaryLine1}</p>
+                    <p className={sum2}>{metaSummaryLine2}</p>
+                    <p className={sum3}>{transportSummary}</p>
+                  </div>
+                )}
+              </div>
+              <span className={`${chevWrap} ${metaOpen ? "rotate-180" : ""}`}>
+                <svg className={chevIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </button>
+            {metaOpen && (
+              <div className={`${isMain ? "px-4 pb-4 pt-4 space-y-5" : "px-3 pb-3 pt-3 space-y-4"} bg-slate-50`}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={lbl}>Fecha</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      onBlur={commitDate}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={lbl}>Ubicación</label>
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      onBlur={commitLocation}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      className={inputClass}
+                      placeholder="ej: Bangkok → Krabi"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-16 shrink-0">
+                    <label className={lbl}>Día #</label>
+                    <input
+                      type="number"
+                      value={dayNum}
+                      onChange={(e) => setDayNum(e.target.value === "" ? "" : e.target.value)}
+                      onBlur={commitDayNum}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      className={inputClass}
+                      min="1"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[160px]">
+                    <label className={lbl}>Título</label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      onBlur={commitTitle}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      className={inputClass}
+                      placeholder="Título del día"
+                    />
+                  </div>
+                </div>
+
+                <div className={`${isMain ? "pt-4" : "pt-3"} border-t-2 border-slate-200`}>
+                  <h4 className={`${secTitle} flex items-center gap-2`}>
+                    <span className={transportEmoji} aria-hidden>
+                      🚌
+                    </span>
+                    Transporte
+                  </h4>
+                  <div className="flex flex-nowrap items-end gap-2 flex-wrap">
+                    <div className="min-w-[110px] flex-1">
+                      <label className={isMain ? "block text-sm font-bold text-slate-700 mb-1.5" : "block text-xs font-bold text-slate-700 mb-1"}>Tipo</label>
+                      <select
+                        value={transport?.type || ""}
+                        onChange={(e) => setTransport((prev) => ({ ...prev, type: e.target.value, duration: prev?.duration ?? "", priceUSD: prev?.priceUSD }))}
+                        onBlur={commitTransport}
+                        className={`${inputClass} cursor-pointer`}
+                      >
+                        <option value="">Sin transporte</option>
+                        <option value="flight">Vuelo</option>
+                        <option value="ferry">Ferry</option>
+                        <option value="high-speed ferry">Ferry rápido</option>
+                        <option value="longtail boat">Longtail boat</option>
+                        <option value="boat tour">Tour en barco</option>
+                        <option value="speedboat tour">Speedboat tour</option>
+                        <option value="bus">Bus</option>
+                        <option value="train">Tren</option>
+                        <option value="taxi">Taxi</option>
+                      </select>
+                    </div>
+                    <div className="min-w-[80px] flex-1">
+                      <label className={isMain ? "block text-sm font-bold text-slate-700 mb-1.5" : "block text-xs font-bold text-slate-700 mb-1"}>Duración</label>
+                      <input
+                        type="text"
+                        value={transport?.duration || ""}
+                        onChange={(e) => setTransport((prev) => ({ ...prev, type: prev?.type ?? "", duration: e.target.value, priceUSD: prev?.priceUSD }))}
+                        onBlur={commitTransport}
+                        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                        className={inputClass}
+                        placeholder="2h"
+                      />
+                    </div>
+                    <div className="min-w-[80px] flex-1">
+                      <label className={isMain ? "block text-sm font-bold text-slate-700 mb-1.5" : "block text-xs font-bold text-slate-700 mb-1"}>Costo USD</label>
+                      <input
+                        type="number"
+                        value={transport?.priceUSD ?? ""}
+                        onChange={(e) =>
+                          setTransport((prev) => ({
+                            ...prev,
+                            type: prev?.type ?? "",
+                            duration: prev?.duration ?? "",
+                            priceUSD: e.target.value ? parseFloat(e.target.value) : undefined,
+                          }))
+                        }
+                        onBlur={commitTransport}
+                        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                        className={inputClass}
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DaySlotsEditor day={day} largeText={isMain} />
+
+          <div className={`rounded-xl border-2 border-slate-300 shadow-md bg-gradient-to-br from-amber-50/80 to-orange-50/50 ${isMain ? "px-4 py-4" : "px-3 py-3"}`}>
+            <h4 className={`${isMain ? "text-sm" : "text-xs"} font-bold text-slate-900 uppercase tracking-wide mb-2 pl-1 border-l-4 border-amber-500`}>Destacados</h4>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {day.highlights?.map((h, i) => (
+                <span
+                  key={i}
+                  className={`inline-flex items-center gap-1 font-medium bg-amber-100 text-amber-950 border-2 border-amber-400 rounded-full shadow-sm ${isMain ? "text-base px-3.5 py-1.5" : "text-sm px-3 py-1"}`}
+                >
+                  {h}
+                  <button
+                    type="button"
+                    onClick={() => removeHighlight(day.id, i)}
+                    className="w-4 h-4 rounded-full hover:bg-amber-300/80 flex items-center justify-center text-amber-900"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newHighlight}
+                onChange={(e) => setNewHighlight(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddHighlight()}
+                className={`flex-1 min-w-0 border-2 border-slate-300 rounded-lg text-slate-900 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 ${isMain ? "px-3 py-2.5 text-base" : "px-2.5 py-2 text-sm"}`}
+                placeholder="Añadir destacado..."
+              />
+              <button
+                type="button"
+                onClick={handleAddHighlight}
+                className={`bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 shadow-sm transition-colors flex-shrink-0 ${isMain ? "px-4 py-2.5 text-sm" : "px-3 py-2 text-xs"}`}
+              >
+                <span className="hidden sm:inline">Añadir</span>
+                <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+  );
+
+  const filledSlots = [day.morningDescription, day.middayDescription, day.afternoonDescription].filter((s) => s.trim()).length;
+
+  if (variant === "main") {
+    return (
+      <div className="bg-slate-100/90 rounded-xl shadow-lg border-2 border-slate-300 overflow-hidden">
+        {formBody}
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Nivel 1: ID - Título - Nº actividades - Botón expandir */}
+    <div className="bg-slate-50 rounded-xl shadow-md border-2 border-slate-200 overflow-hidden">
       <div className="flex items-center gap-2 p-3 md:p-4 border-b border-gray-100">
         <span className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm md:text-base flex-shrink-0">
           {day.day}
@@ -85,8 +327,8 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
         >
           <h3 className="font-semibold text-gray-900 break-words min-w-0">{day.title}</h3>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs bg-blue-50 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center font-medium" title={`${day.activities.length} actividades`}>
-              {day.activities.length}
+            <span className="text-xs bg-blue-50 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center font-medium" title={`${filledSlots}/3 tramos con texto`}>
+              {filledSlots}
             </span>
             <div className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}>
               <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +338,6 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
           </div>
         </button>
       </div>
-      {/* Nivel 2: Draggable - Fecha - Lugar - Nº actividades - Botón eliminar */}
       <div className="flex items-center gap-2 px-3 pb-3 md:px-4 md:pb-4 pt-0 flex-wrap">
         {typeof index === "number" && onDragStart && onDragEnd ? (
           <div
@@ -138,190 +379,7 @@ export default function DayEditor({ day, index, onDragStart, onDragEnd }: DayEdi
         </button>
       </div>
 
-      {isExpanded && (
-        <div className="border-t border-gray-100 p-3 md:p-4 space-y-4">
-          <div className="flex flex-nowrap items-end gap-3">
-            <div className="min-w-[140px] flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                onBlur={commitDate}
-                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                onBlur={commitLocation}
-                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="ej: Bangkok → Krabi"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-row flex-wrap items-end gap-4">
-            <div className="w-14 flex-shrink-0">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Día #</label>
-              <input
-                type="number"
-                value={dayNum}
-                onChange={(e) => setDayNum(e.target.value === "" ? "" : e.target.value)}
-                onBlur={commitDayNum}
-                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                className="w-full px-2 py-1.5 text-sm text-gray-500 border border-gray-200 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                min="1"
-              />
-            </div>
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={commitTitle}
-                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Título del día"
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-gray-100 pt-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Transporte</h4>
-            <div className="flex flex-nowrap items-end gap-3">
-              <div className="min-w-[120px] flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Tipo</label>
-                <select
-                  value={transport?.type || ""}
-                  onChange={(e) => setTransport((prev) => ({ ...prev, type: e.target.value, duration: prev?.duration ?? "", priceUSD: prev?.priceUSD }))}
-                  onBlur={commitTransport}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">Sin transporte</option>
-                  <option value="flight">Vuelo</option>
-                  <option value="ferry">Ferry</option>
-                  <option value="high-speed ferry">Ferry rápido</option>
-                  <option value="longtail boat">Longtail boat</option>
-                  <option value="boat tour">Tour en barco</option>
-                  <option value="speedboat tour">Speedboat tour</option>
-                  <option value="bus">Bus</option>
-                  <option value="train">Tren</option>
-                  <option value="taxi">Taxi</option>
-                </select>
-              </div>
-              <div className="min-w-[90px] flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Duración</label>
-                <input
-                  type="text"
-                  value={transport?.duration || ""}
-                  onChange={(e) => setTransport((prev) => ({ ...prev, type: prev?.type ?? "", duration: e.target.value, priceUSD: prev?.priceUSD }))}
-                  onBlur={commitTransport}
-                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="ej: 2h 30m"
-                />
-              </div>
-              <div className="min-w-[80px] flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Costo USD</label>
-                <input
-                  type="number"
-                  value={transport?.priceUSD ?? ""}
-                  onChange={(e) => setTransport((prev) => ({ ...prev, type: prev?.type ?? "", duration: prev?.duration ?? "", priceUSD: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                  onBlur={commitTransport}
-                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-100 pt-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Actividades</h4>
-            
-            <div className="space-y-3">
-              {day.activities.map((activity, index) => (
-                <ActivityEditor
-                  key={activity.id}
-                  activity={activity}
-                  index={index}
-                  onUpdate={(updates) => updateActivity(day.id, activity.id, updates)}
-                  onDelete={() => deleteActivity(day.id, activity.id)}
-                  onMoveUp={() => reorderActivities(day.id, index, index - 1)}
-                  onMoveDown={() => reorderActivities(day.id, index, index + 1)}
-                  isFirst={index === 0}
-                  isLast={index === day.activities.length - 1}
-                />
-              ))}
-              {day.activities.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  No hay actividades. Añade una para comenzar.
-                </p>
-              )}
-              
-              <button
-                onClick={() => addActivity(day.id)}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Añadir actividad
-              </button>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-100 pt-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Destacados</h4>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {day.highlights?.map((h, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 text-sm bg-gradient-to-r from-orange-100 to-pink-100 text-orange-700 px-3 py-1 rounded-full"
-                >
-                  {h}
-                  <button
-                    onClick={() => removeHighlight(day.id, i)}
-                    className="w-4 h-4 rounded-full hover:bg-orange-200 flex items-center justify-center"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newHighlight}
-                onChange={(e) => setNewHighlight(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddHighlight()}
-                className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Añadir destacado..."
-              />
-              <button
-                onClick={handleAddHighlight}
-                className="px-3 md:px-4 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors flex-shrink-0"
-              >
-                <span className="hidden sm:inline">Añadir</span>
-                <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-        </div>
-      )}
+      {isExpanded && formBody}
     </div>
   );
 }

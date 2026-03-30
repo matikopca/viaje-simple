@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from "react";
-import { Itinerary, ItineraryDay, Activity, Country } from "@/types/itinerary";
+import { Itinerary, ItineraryDay, Country } from "@/types/itinerary";
 import { supabase } from "@/lib/supabase";
 
 interface ItineraryContextType {
@@ -17,10 +17,6 @@ interface ItineraryContextType {
   addDay: (countryId?: string) => Promise<void>;
   deleteDay: (dayId: string) => Promise<void>;
   reorderDays: (countryId: string, fromIndex: number, toIndex: number) => Promise<void>;
-  addActivity: (dayId: string) => Promise<void>;
-  updateActivity: (dayId: string, activityId: string, updates: Partial<Activity>) => Promise<void>;
-  deleteActivity: (dayId: string, activityId: string) => Promise<void>;
-  reorderActivities: (dayId: string, fromIndex: number, toIndex: number) => Promise<void>;
   addHighlight: (dayId: string, highlight: string) => Promise<void>;
   removeHighlight: (dayId: string, index: number) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -61,15 +57,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
 
       if (daysError) throw daysError;
 
-      const { data: activities, error: activitiesError } = await supabase
-        .from("activities")
-        .select("*")
-        .order("sort_order", { ascending: true });
-
-      if (activitiesError) throw activitiesError;
-
       const daysList = days || [];
-      const activitiesList = activities || [];
       const itineraryData: Itinerary = daysList.map((day) => ({
         id: day.id,
         day: day.day,
@@ -79,16 +67,9 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         transport: day.transport,
         highlights: day.highlights || [],
         countryId: day.country_id,
-        activities: activitiesList
-          .filter((a) => a.day_id === day.id)
-          .map((a) => ({
-            id: a.id,
-            place: a.place,
-            description: a.description || [],
-            mapUrl: a.map_url,
-            duration: a.duration,
-            priceUSD: a.price_usd ? parseFloat(a.price_usd) : undefined,
-          })),
+        morningDescription: typeof day.morning_description === "string" ? day.morning_description : "",
+        middayDescription: typeof day.midday_description === "string" ? day.midday_description : "",
+        afternoonDescription: typeof day.afternoon_description === "string" ? day.afternoon_description : "",
       }));
 
       setItinerary(itineraryData);
@@ -129,6 +110,9 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.transport !== undefined) dbUpdates.transport = updates.transport;
       if (updates.highlights !== undefined) dbUpdates.highlights = updates.highlights;
+      if (updates.morningDescription !== undefined) dbUpdates.morning_description = updates.morningDescription;
+      if (updates.middayDescription !== undefined) dbUpdates.midday_description = updates.middayDescription;
+      if (updates.afternoonDescription !== undefined) dbUpdates.afternoon_description = updates.afternoonDescription;
 
       const { error } = await supabase
         .from("days")
@@ -258,6 +242,9 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         title: "Nuevo día",
         transport: null,
         highlights: [] as string[],
+        morning_description: "",
+        midday_description: "",
+        afternoon_description: "",
       };
 
       const { data, error } = await supabase
@@ -278,7 +265,9 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
           title: newDay.title,
           transport: undefined,
           highlights: [],
-          activities: [],
+          morningDescription: "",
+          middayDescription: "",
+          afternoonDescription: "",
           countryId: targetCountryId,
         },
       ]);
@@ -316,142 +305,6 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Error deleting day:", err);
       setError(err instanceof Error ? err.message : "Error al eliminar día");
-    }
-  }, [itinerary]);
-
-  const addActivity = useCallback(async (dayId: string) => {
-    try {
-      const day = itinerary.find((d) => d.id === dayId);
-      const sortOrder = day ? day.activities.length : 0;
-
-      const newActivity = {
-        day_id: dayId,
-        place: "Nueva actividad",
-        description: [],
-        map_url: null,
-        duration: null,
-        price_usd: null,
-        sort_order: sortOrder,
-      };
-
-      const { data, error } = await supabase
-        .from("activities")
-        .insert(newActivity)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setItinerary((prev) =>
-        prev.map((d) => {
-          if (d.id === dayId) {
-            return {
-              ...d,
-              activities: [
-                ...d.activities,
-                {
-                  id: data.id,
-                  place: "Nueva actividad",
-                  description: [],
-                },
-              ],
-            };
-          }
-          return d;
-        })
-      );
-    } catch (err) {
-      console.error("Error adding activity:", err);
-      setError(err instanceof Error ? err.message : "Error al añadir actividad");
-    }
-  }, [itinerary]);
-
-  const updateActivity = useCallback(async (dayId: string, activityId: string, updates: Partial<Activity>) => {
-    try {
-      const dbUpdates: Record<string, unknown> = {};
-      if (updates.place !== undefined) dbUpdates.place = updates.place;
-      if (updates.description !== undefined) dbUpdates.description = updates.description;
-      if (updates.mapUrl !== undefined) dbUpdates.map_url = updates.mapUrl;
-      if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
-      if (updates.priceUSD !== undefined) dbUpdates.price_usd = updates.priceUSD;
-
-      const { error } = await supabase
-        .from("activities")
-        .update(dbUpdates)
-        .eq("id", activityId);
-
-      if (error) throw error;
-
-      setItinerary((prev) =>
-        prev.map((d) => {
-          if (d.id === dayId) {
-            return {
-              ...d,
-              activities: d.activities.map((a) =>
-                a.id === activityId ? { ...a, ...updates } : a
-              ),
-            };
-          }
-          return d;
-        })
-      );
-    } catch (err) {
-      console.error("Error updating activity:", err);
-      setError(err instanceof Error ? err.message : "Error al actualizar actividad");
-    }
-  }, []);
-
-  const deleteActivity = useCallback(async (dayId: string, activityId: string) => {
-    try {
-      const { error } = await supabase.from("activities").delete().eq("id", activityId);
-      if (error) throw error;
-
-      setItinerary((prev) =>
-        prev.map((d) => {
-          if (d.id === dayId) {
-            return {
-              ...d,
-              activities: d.activities.filter((a) => a.id !== activityId),
-            };
-          }
-          return d;
-        })
-      );
-    } catch (err) {
-      console.error("Error deleting activity:", err);
-      setError(err instanceof Error ? err.message : "Error al eliminar actividad");
-    }
-  }, []);
-
-  const reorderActivities = useCallback(async (dayId: string, fromIndex: number, toIndex: number) => {
-    try {
-      const day = itinerary.find((d) => d.id === dayId);
-      if (!day) return;
-
-      const activities = [...day.activities];
-      const [removed] = activities.splice(fromIndex, 1);
-      activities.splice(toIndex, 0, removed);
-
-      // Update local state immediately
-      setItinerary((prev) =>
-        prev.map((d) => (d.id === dayId ? { ...d, activities } : d))
-      );
-
-      // Update sort_order in database
-      const updates = activities.map((a, index) => ({
-        id: a.id,
-        sort_order: index,
-      }));
-
-      for (const update of updates) {
-        await supabase
-          .from("activities")
-          .update({ sort_order: update.sort_order })
-          .eq("id", update.id);
-      }
-    } catch (err) {
-      console.error("Error reordering activities:", err);
-      setError(err instanceof Error ? err.message : "Error al reordenar");
     }
   }, [itinerary]);
 
@@ -520,10 +373,6 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         addDay,
         deleteDay,
         reorderDays,
-        addActivity,
-        updateActivity,
-        deleteActivity,
-        reorderActivities,
         addHighlight,
         removeHighlight,
         refreshData,

@@ -1,18 +1,3 @@
-export interface Coordinates {
-  lat: number;
-  lng: number;
-}
-
-export interface Activity {
-  id: string;
-  place: string;
-  description?: string[] | string;
-  coordinates?: Coordinates;
-  mapUrl?: string;
-  duration?: string;
-  priceUSD?: number;
-}
-
 export interface Transport {
   type: string;
   from?: string;
@@ -30,7 +15,10 @@ export interface ItineraryDay {
   location: string;
   title: string;
   transport?: Transport;
-  activities: Activity[];
+  /** Texto libre (# título, - ítem, párrafos). Tramos: mañana / tarde / noche (BD: morning_, midday_, afternoon_). */
+  morningDescription: string;
+  middayDescription: string;
+  afternoonDescription: string;
   highlights?: string[];
   countryId?: string;
 }

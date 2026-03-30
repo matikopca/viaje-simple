@@ -1,17 +1,43 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ItineraryProvider, useItinerary } from "@/contexts/ItineraryContext";
 import type { ItineraryDay } from "@/types/itinerary";
 import Timeline from "@/components/itinerary/Timeline";
 import DayCard from "@/components/itinerary/DayCard";
+import DayEditor from "@/components/admin/DayEditor";
 
 function ItineraryContent() {
   const { countries, itinerary, loading, error } = useItinerary();
   const [allExpanded, setAllExpanded] = useState<boolean | null>(null);
   const [expandedCountryIds, setExpandedCountryIds] = useState<Set<string>>(new Set());
+  const [editingDayId, setEditingDayId] = useState<string | null>(null);
   const initialExpandDone = useRef(false);
+
+  const closeDayEditor = useCallback(() => setEditingDayId(null), []);
+
+  useEffect(() => {
+    if (!editingDayId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeDayEditor();
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [editingDayId, closeDayEditor]);
+
+  const editingDay = editingDayId ? itinerary.find((d) => d.id === editingDayId) : undefined;
+
+  useEffect(() => {
+    if (editingDayId && !itinerary.some((d) => d.id === editingDayId)) {
+      setEditingDayId(null);
+    }
+  }, [editingDayId, itinerary]);
 
   useEffect(() => {
     if (countries.length > 0 && !initialExpandDone.current) {
@@ -74,12 +100,11 @@ function ItineraryContent() {
     return sum + (day.transport?.priceUSD || 0);
   }, 0);
 
-  const totalActivitiesCost = itinerary.reduce((sum: number, day: ItineraryDay) => {
-    return sum + day.activities.reduce((acc: number, a) => acc + (a.priceUSD || 0), 0);
-  }, 0);
-
-  const totalPlaces = itinerary.reduce((sum: number, day: ItineraryDay) => {
-    return sum + day.activities.length;
+  const totalFilledSlots = itinerary.reduce((sum: number, day: ItineraryDay) => {
+    return (
+      sum +
+      [day.morningDescription, day.middayDescription, day.afternoonDescription].filter((s) => s.trim()).length
+    );
   }, 0);
 
   const handleExpandAll = () => {
@@ -107,12 +132,13 @@ function ItineraryContent() {
           </div>
           <Link
             href="/admin"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
             </svg>
-            <span>Editar</span>
+            <span className="hidden sm:inline">Países y orden</span>
+            <span className="sm:hidden">Orden</span>
           </Link>
         </div>
       </header>
@@ -140,11 +166,11 @@ function ItineraryContent() {
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-400 to-pink-500" />
-            <span>{totalPlaces} Lugares</span>
+            <span>{totalFilledSlots} tramos con plan</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-green-400 to-emerald-500" />
-            <span>${totalTransportCost + totalActivitiesCost} USD total</span>
+            <span>${totalTransportCost} USD transporte</span>
           </div>
         </div>
 
@@ -188,10 +214,13 @@ function ItineraryContent() {
                 title={day.title}
                 location={day.location}
                 transport={day.transport}
-                activities={day.activities}
+                morningDescription={day.morningDescription}
+                middayDescription={day.middayDescription}
+                afternoonDescription={day.afternoonDescription}
                 highlights={day.highlights}
                 forceExpanded={allExpanded}
                 onToggle={() => setAllExpanded(null)}
+                onEditDay={() => setEditingDayId(day.id)}
               />
             ))}
         </Timeline>
@@ -232,10 +261,13 @@ function ItineraryContent() {
                         title={day.title}
                         location={day.location}
                         transport={day.transport}
-                        activities={day.activities}
+                        morningDescription={day.morningDescription}
+                        middayDescription={day.middayDescription}
+                        afternoonDescription={day.afternoonDescription}
                         highlights={day.highlights}
                         forceExpanded={allExpanded}
                         onToggle={() => setAllExpanded(null)}
+                        onEditDay={() => setEditingDayId(day.id)}
                       />
                     ))}
                 </Timeline>
@@ -244,6 +276,42 @@ function ItineraryContent() {
           </div>
         );
       })}
+
+      {editingDay && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col sm:items-center sm:justify-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="main-day-editor-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm hidden sm:block"
+            aria-label="Cerrar"
+            onClick={closeDayEditor}
+          />
+          <div className="relative z-10 flex w-full flex-1 flex-col overflow-hidden bg-white min-h-[100dvh] sm:min-h-0 sm:h-auto sm:max-h-[min(92vh,900px)] sm:max-w-xl sm:flex-none sm:rounded-2xl sm:border sm:border-gray-200 sm:shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-slate-100 to-white px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-4">
+              <h2 id="main-day-editor-title" className="text-lg sm:text-xl font-bold text-slate-900 truncate pr-2">
+                Día {editingDay.day} · {editingDay.title}
+              </h2>
+              <button
+                type="button"
+                onClick={closeDayEditor}
+                className="shrink-0 w-11 h-11 rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 flex items-center justify-center transition-colors"
+                aria-label="Cerrar"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-4 sm:p-5">
+              <DayEditor key={editingDay.id} day={editingDay} variant="main" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

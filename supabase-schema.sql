@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS days (
   title TEXT NOT NULL,
   transport JSONB,
   highlights TEXT[] DEFAULT '{}',
+  -- Tramos del día en UI: mañana / tarde / noche
+  morning_description TEXT NOT NULL DEFAULT '',
+  midday_description TEXT NOT NULL DEFAULT '',
+  afternoon_description TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
