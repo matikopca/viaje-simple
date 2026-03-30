@@ -23,6 +23,8 @@ function ItineraryContent() {
   const [expandedCountryIds, setExpandedCountryIds] = useState<Set<string>>(new Set());
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
   const initialExpandDone = useRef(false);
+  /** Ancla para el modo expandido/compacto del countdown (no usa scrollY: evita bucles al cambiar la altura del header). */
+  const countdownScrollSentinelRef = useRef<HTMLDivElement>(null);
 
   const closeDayEditor = useCallback(() => setEditingDayId(null), []);
 
@@ -130,9 +132,16 @@ function ItineraryContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {countdownTarget ? (
+        <div
+          ref={countdownScrollSentinelRef}
+          className="pointer-events-none h-px w-full shrink-0"
+          aria-hidden
+        />
+      ) : null}
       {/* Cabecera fija al scroll: cuenta atrás + barra de navegación */}
       <header className="sticky top-0 z-50 border-b border-gray-200/50 bg-white/90 shadow-sm backdrop-blur-md">
-        <TripCountdown targetDate={countdownTarget} />
+        <TripCountdown targetDate={countdownTarget} scrollTopSentinelRef={countdownScrollSentinelRef} />
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-2 sm:px-6 sm:py-2.5">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">

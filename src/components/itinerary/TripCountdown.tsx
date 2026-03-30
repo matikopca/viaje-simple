@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-
-const SCROLL_COMPACT_PX = 32;
+import { useState, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
 
 function parseLocalDayStart(isoDate: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate.trim());
@@ -20,6 +18,12 @@ function pad2(n: number) {
 interface TripCountdownProps {
   /** YYYY-MM-DD; inicio del día en hora local */
   targetDate: string | null;
+  /**
+   * Elemento de 1px al inicio del documento (hermano anterior al header).
+   * IntersectionObserver: expandido mientras sea visible; compacto al hacer scroll.
+   * Así no dependemos de scrollY, que cambia al variar la altura del countdown (evita parpadeos).
+   */
+  scrollTopSentinelRef: RefObject<HTMLDivElement | null>;
 }
 
 function BigUnit({ value, label, pad }: { value: number; label: string; pad: boolean }) {
@@ -43,26 +47,15 @@ function CompactUnit({ value, suffix, pad }: { value: number; suffix: string; pa
   );
 }
 
-export default function TripCountdown({ targetDate }: TripCountdownProps) {
+export default function TripCountdown({ targetDate, scrollTopSentinelRef }: TripCountdownProps) {
   const [tick, setTick] = useState(0);
   const [atTop, setAtTop] = useState(true);
-
-  const updateScroll = useCallback(() => {
-    setAtTop(typeof window !== "undefined" && window.scrollY < SCROLL_COMPACT_PX);
-  }, []);
 
   useEffect(() => {
     if (!targetDate) return;
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
   }, [targetDate]);
-
-  useEffect(() => {
-    if (!targetDate) return;
-    updateScroll();
-    window.addEventListener("scroll", updateScroll, { passive: true });
-    return () => window.removeEventListener("scroll", updateScroll);
-  }, [targetDate, updateScroll]);
 
   const { diffMs, ended } = useMemo(() => {
     if (!targetDate) return { diffMs: 0, ended: true };
@@ -71,6 +64,20 @@ export default function TripCountdown({ targetDate }: TripCountdownProps) {
     const diff = target.getTime() - Date.now();
     return { diffMs: diff, ended: diff <= 0 };
   }, [targetDate, tick]);
+
+  useLayoutEffect(() => {
+    if (!targetDate || ended) return;
+    const el = scrollTopSentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        setAtTop(entry.isIntersecting);
+      },
+      { root: null, threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [targetDate, ended, scrollTopSentinelRef]);
 
   if (!targetDate) return null;
 
