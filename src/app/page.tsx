@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { ItineraryProvider, useItinerary } from "@/contexts/ItineraryContext";
 import type { ItineraryDay } from "@/types/itinerary";
 import Timeline from "@/components/itinerary/Timeline";
 import DayCard from "@/components/itinerary/DayCard";
 import DayEditor from "@/components/admin/DayEditor";
+import TripCountdown from "@/components/itinerary/TripCountdown";
 
 function ItineraryContent() {
   const { countries, itinerary, loading, error } = useItinerary();
@@ -107,6 +108,14 @@ function ItineraryContent() {
     );
   }, 0);
 
+  /** Fecha objetivo: `NEXT_PUBLIC_TRIP_START_DATE` (YYYY-MM-DD) o el primer día del itinerario. */
+  const countdownTarget = useMemo(() => {
+    const env = process.env.NEXT_PUBLIC_TRIP_START_DATE?.trim();
+    if (env && /^\d{4}-\d{2}-\d{2}/.test(env)) return env.slice(0, 10);
+    if (itinerary.length === 0) return null;
+    return [...itinerary].sort((a, b) => a.date.localeCompare(b.date))[0].date;
+  }, [itinerary]);
+
   const handleExpandAll = () => {
     expandAllCountries();
     setAllExpanded(true);
@@ -118,10 +127,11 @@ function ItineraryContent() {
   };
 
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen overflow-x-hidden">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200/50">
-        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Cabecera fija al scroll: cuenta atrás + barra de navegación */}
+      <header className="sticky top-0 z-50 border-b border-gray-200/50 bg-white/90 shadow-sm backdrop-blur-md">
+        <TripCountdown targetDate={countdownTarget} />
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-2 sm:px-6 sm:py-2.5">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
               <span className="text-white text-xs font-bold">🌍</span>
@@ -143,6 +153,7 @@ function ItineraryContent() {
         </div>
       </header>
 
+      <div className="overflow-x-hidden">
       <section className="max-w-4xl mx-auto px-6 py-12">
         <div className="flex items-start justify-between">
           <div>
@@ -276,6 +287,7 @@ function ItineraryContent() {
           </div>
         );
       })}
+      </div>
 
       {editingDay && (
         <div
