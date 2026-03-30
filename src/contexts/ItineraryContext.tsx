@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from "react";
 import { Itinerary, ItineraryDay, Country } from "@/types/itinerary";
 import { supabase } from "@/lib/supabase";
+import { addDaysToDateOnly } from "@/lib/dateOnly";
 
 interface ItineraryContextType {
   itinerary: Itinerary;
@@ -231,13 +232,19 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       const countryDays = itinerary.filter((d) => d.countryId === targetCountryId);
       const maxDay = countryDays.length > 0 ? Math.max(...countryDays.map((d) => d.day)) : 0;
       const lastDay = countryDays.sort((a, b) => a.day - b.day)[countryDays.length - 1];
-      const lastDate = lastDay ? new Date(lastDay.date) : new Date();
-      lastDate.setDate(lastDate.getDate() + 1);
+      let nextDateStr: string;
+      if (lastDay) {
+        nextDateStr = addDaysToDateOnly(lastDay.date, 1);
+      } else {
+        const t = new Date();
+        t.setDate(t.getDate() + 1);
+        nextDateStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+      }
 
       const newDay = {
         country_id: targetCountryId,
         day: maxDay + 1,
-        date: lastDate.toISOString().split("T")[0],
+        date: nextDateStr,
         location: "",
         title: "Nuevo día",
         transport: null,

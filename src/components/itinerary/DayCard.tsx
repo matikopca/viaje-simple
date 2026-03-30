@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Transport } from "@/types/itinerary";
+import { formatDateOnlyLocal } from "@/lib/dateOnly";
 import ActivityDescriptionContent from "@/components/itinerary/ActivityDescriptionContent";
 
 interface DayCardProps {
@@ -55,11 +56,6 @@ export default function DayCard({
     onToggle?.();
   };
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" });
-  };
-
   const slots = [
     { label: "Mañana", text: morningDescription },
     { label: "Tarde", text: middayDescription },
@@ -95,7 +91,13 @@ export default function DayCard({
                 {date && (
                   <>
                     <span className="text-sm text-gray-300">•</span>
-                    <span className="text-sm font-medium text-gray-500">{formatDate(date)}</span>
+                    <span className="text-sm font-medium text-gray-500">
+                      {formatDateOnlyLocal(date, "es-ES", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </span>
                   </>
                 )}
               </div>

@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
-
-function parseLocalDayStart(isoDate: string): Date {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate.trim());
-  if (!m) return new Date(NaN);
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  return new Date(y, mo - 1, d, 0, 0, 0, 0);
-}
+import { parseDateOnlyLocal } from "@/lib/dateOnly";
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -94,7 +86,7 @@ export default function TripCountdown({ targetDate, scrollTopSentinelRef }: Trip
 
   const { diffMs, ended } = useMemo(() => {
     if (!targetDate) return { diffMs: 0, ended: true };
-    const target = parseLocalDayStart(targetDate);
+    const target = parseDateOnlyLocal(targetDate);
     if (Number.isNaN(target.getTime())) return { diffMs: 0, ended: true };
     const diff = target.getTime() - Date.now();
     return { diffMs: diff, ended: diff <= 0 };
