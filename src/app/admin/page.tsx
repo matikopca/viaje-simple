@@ -27,6 +27,7 @@ const COUNTRY_FLAGS: { name: string; emoji: string }[] = [
   { name: "Perú", emoji: "🇵🇪" },
   { name: "Portugal", emoji: "🇵🇹" },
   { name: "Reino Unido", emoji: "🇬🇧" },
+  { name: "Singapur", emoji: "🇸🇬" },
   { name: "Tailandia", emoji: "🇹🇭" },
   { name: "Vietnam", emoji: "🇻🇳" },
   { name: "Planeta Tierra (otro)", emoji: "🌍" },
